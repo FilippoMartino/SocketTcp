@@ -3,7 +3,7 @@
     #include <stdlib.h>
     #include <string.h>
     #include <sys/socket.h>
-    #include <netinet/in.h>rett
+    #include <netinet/in.h>
     #include <arpa/inet.h>
     #include <pthread.h>
     #include <errno.h>
@@ -24,6 +24,7 @@
     #define __ADDRESS_HPP
 
     static pthread_mutex_t mutex;
+    static pthread_mutex_t prova_git;
 
     /*
     *
