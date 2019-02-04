@@ -24,7 +24,7 @@
     #define __ADDRESS_HPP
 
     static pthread_mutex_t mutex;
-    
+
 
     /*
     *
@@ -157,7 +157,7 @@
 
                 }
 
-                Address::Address(const Address& a){
+                Address::Address(const Address &a){
 
                 /*
                 *
