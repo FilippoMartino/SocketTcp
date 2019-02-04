@@ -24,7 +24,7 @@
     #define __ADDRESS_HPP
 
     static pthread_mutex_t mutex;
-    static pthread_mutex_t prova_git;
+    
 
     /*
     *
