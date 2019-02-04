@@ -292,7 +292,7 @@ void ClientTcp::connetti(){
 
 //============================================Connection===================================================================
 
-class Connection{
+class Connection: private ClientConnection{
 
     protected:  Connection(int);
                 ~Connection();
@@ -308,7 +308,6 @@ class Connection{
 
               */
               bool send_raw(void*, int);
-
               /*
                 recive_raw (invocata mediante binding dinamico):
                 void* -> buffer con risorsa che arriverà dal client
@@ -319,7 +318,6 @@ class Connection{
 
               */
               int recive_raw(void*, int);
-
               /*
                 Invio di una semplice stringa
                 appoggiandocisi al metodo send_raw
@@ -419,19 +417,31 @@ char* Connection::recive_string(){
 
 }
 
+//======================================ClientConnection===================================================================
+
+class ClientConnection{
+
+private: ;
+
+protected:  ClientConnection(int);
+            ~ClientConnection();
+
+            void send_string(char* message);
+            char* recive_string();
+};
+
+ClientConnection::ClientConnection(int mmt){
+
+  Connection connection = new Connection(5);
+
+}
+
 //======================================ServerConnection===================================================================
 
-class ServerConnection:private Connection{
+  class ServerConnection:private Connection{
 
 };
 
-//======================================ConnectionClient===================================================================
-
-class ConnectionClient: private Connection{
-
-
-
-};
 
 
 #endif
