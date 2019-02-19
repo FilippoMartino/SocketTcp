@@ -1,21 +1,53 @@
-#include "socket_tcp.hpp"
+#include "SocketTCP.hpp"
 
-//Funzione thread
-void request(void* params);
+#define HOME "HTTP/1.1 200 OK\n\
+Date: Wed, 19 Apr 2017 16:34:20 GMT\n\
+Content-Type: text/html; charset=UTF-8\n\
+\n <!DOCTYPE html>\n\
+<html class=\"client-nojs\" lang=\"it\" dir=\"ltr\">\n\
+<head>\n\
+<title>web site</title>\n\
+<body>\n\
+<h1>Hello world</h1>\n\
+</body>\n\
+</html>"
 
 typedef struct {
 
 		ConnServer* conn;
-		ServerTcp* myself;
+		ServerTCP* myself;
 
 } Params;
+
+void* request(void* params) {	
+  
+  // Mi prendo la risposta da fornire al client
+  static char* home = strdup("foo");
+  
+  // Lo si fa per il casting
+  Params* p = (Params*) params;
+  // Salvo i valori puntati in due variabili locali
+  ConnServer* conn = (ConnServer*) p->conn;
+  ServerTCP* myself = (ServerTCP*) p->myself;
+  // elimino i parametri dallo heap
+  free(p);
+  // Ricevo le richieste
+  conn->ricevi();
+  // Invio le risposte
+  conn->invia(home);
+		// Disconnetto questa conn dalla lista  
+  myself->disconnetti(conn);
+  // Termino il threadz
+  pthread_exit(NULL); 
+  
+}
 
 int main (int argc, char const *argv[]){
   
   int port = atoi(argv[1]);
 	
 		// Idea di Wang, far diventare questo un SINGLETON (DP GOF)
-  ServerTcp* myself = new ServerTcp(port);
+  ServerTCP* myself = new ServerTCP(port);
   
   while(true){
     
@@ -36,15 +68,12 @@ int main (int argc, char const *argv[]){
     */
 				Params* params = (Params*) malloc(sizeof(Params));
 				// Assegno i valori all'area di memoria
-				params->connection = conn;
-				params->myslef = myself;
+				params->conn = conn;
+				params->myself = myself;
 				// Alloco il thread_id
     pthread_t thread_id;
     // Creo il thread che verrà messo in coda dal gestore di processi
-    pthread_create(&thread_id,
-    															NULL,
-    															request, // <- funzione da chiamare
-    															(void*) params; //	<- struttura con dati da passare alla funzione
+    pthread_create(&thread_id, NULL, request,	 (void*) params); 
   
   }  
   
@@ -55,28 +84,7 @@ int main (int argc, char const *argv[]){
 }
 
 
-void* request(void* params) {
-  
-  // Mi preno la risposta da fornire al client
-  static char* home = HOME_PAGE;
-  
-  // Lo si fa per il casting
-  Params* p = (Params) params;
-  // Salvo i valori puntati in due variabili locali
-  ConnServer* conn = (ConnServer*) p->connection;
-  ServerTcp* myself = (ConnServer*) p->connection;
-  // elimino i parametri dallo heap
-  free(p);
-  // Ricevo le richieste
-  conn->ricevi;
-  // Invio le risposte
-  conn->invia(home);
-		// Disconnetto questa conn dalla lista  
-  myself->disconnetti();
-  // Termino il thread
-  pthread_exit(NULL); 
-  
-}
+
 
 
 
