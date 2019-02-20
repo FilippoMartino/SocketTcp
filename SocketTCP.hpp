@@ -26,7 +26,7 @@ SocketTCP::SocketTCP(){
 		printf("Error setting socket id: %s", strerror(errno));
 	else
 		printf("OK\n");
-		
+
 }
 
 void SocketTCP::setBroadcast(bool attivo){
@@ -36,7 +36,7 @@ void SocketTCP::setBroadcast(bool attivo){
 		ret = setsockopt(this->sock_id,SOL_SOCKET,SO_BROADCAST,&optval,sizeof(optval));
 		if (ret)
 			printf("Error setting broadcast: %s", strerror(errno));
-		
+
 	}
 }
 SocketTCP::~SocketTCP(){
@@ -81,7 +81,7 @@ char* Connection::riceviRaw(int* length){
 	*length=recv(this->connID,buffer,MAX_MESSAGE,0);
 	if(!(*length))
 		printf("Error receiving buffer: %s", strerror(errno));
-	
+
 	char* ret=(char*)malloc(*length + 1);
 	for(int i=0;i<=*length;i++){
 		*(ret+i)=buffer[i];
@@ -130,14 +130,14 @@ ServerTCP::ServerTCP(int port):SocketTCP(){
 	myself=address.getBinary();
 
 	int ret=bind(sock_id,(struct sockaddr*) &myself,(socklen_t)sizeof(struct sockaddr_in));
-	
+
 	if (ret == -1)
         printf("Error doing bind: %s", strerror(errno));
-	
+
 	listen(sock_id,MAX_CONN);
 	printf("OK\n");
 
-}
+} //OKE
 
 ServerTCP::~ServerTCP(){
 	chiudiConnessioni();
@@ -219,9 +219,9 @@ bool ClientTCP::connetti(Address serverAddress){
 		this->connection=new ConnClient(sock_id);
 		return true;
 	}
-	
+
 	printf("Error connecting to server: %s", strerror(errno));
-	
+
 return false;
 
 }

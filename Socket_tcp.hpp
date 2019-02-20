@@ -1,9 +1,9 @@
-#include "Address.hpp"
+#include "address.hpp"
 
-//per lavorare con le liste
-#include <iostream>
-#include <string>
-#include <vector>
+#include <unistd.h>
+#include <list>
+#include <iterator>
+
 using namespace std;
 
 #ifndef __SOCKETTCP_HPP
@@ -18,7 +18,7 @@ using namespace std;
 
 class SocketTcp{
 
-    protected:    int sock_id;
+    protected:  int sock_id;
 
     protected:  SocketTcp();
                 ~SocketTcp();
@@ -39,7 +39,7 @@ SocketTcp::SocketTcp(){
 
    */
 
-   if (socket(AF_INET, SOCK_STREAM, 0) == -1){
+   if (this->sock_id= socket(AF_INET, SOCK_STREAM, 0) == -1){
        printf("Error setting socket: %s\n", strerror(errno));
        exit(EXIT_FAILURE);
    }
@@ -47,11 +47,15 @@ SocketTcp::SocketTcp(){
 }
 
 // Distruttore
-SocketTcp::~SocketTcp(){}
+SocketTcp::~SocketTcp(){
 
-void SocketTcp::setBroadcast(bool activate_broadcast){
+  //mi limito a chiudere il socket
+  close(this->sock_id);
 
-		int isActive = activate_broadcast;
+}
+
+void SocketTcp::setBroadcast(bool is_active){
+
 
         /*
             Controlla il valore passato alla funzione,
@@ -71,7 +75,7 @@ void SocketTcp::setBroadcast(bool activate_broadcast){
 
         */
 
-		if (isActive){
+		if (is_active){
 
 			if(setsockopt(
                 this->sock_id,
@@ -91,179 +95,97 @@ void SocketTcp::setBroadcast(bool activate_broadcast){
 
 //==============================================ServerTcp==================================================================
 
-    /*
-
-        Non è necessario, quando una sottoclasse eredita da una supercalsse, che la prima invochi il costruttore
-        della seconda, perchè c++ fa già tutto in automatico, quindi nel caso di ServerTcp (ma anche del client)
-        quando verrano invocati verrà prima eseguito il codice all'interno del costruttore di SocketTcp (che apunto
-        setta il socket) e successivamente le classi figlie (su cui lavoreranno)
-
-    */
-
 class ServerTcp: private SocketTcp{
 
-    private: int my_port;
-             char* my_ip;
+    private:  list <ServerConnection*> connections;
+              char* my_ip;
 
-             /*
-                ad ogni elemento della lista
-                passerò un conn_id sul quale i
-                metodi lavoreranno
+    public:   ServerTcp(int);
+              ~ServerTcp();
+              ServerConnection* accept();
+              //Chiude una singola connessione
+              void disconnect (ServerConnection*);
+              //Chiude tutte le connessioni presenti nel server
+              void server_shutdown();
+              //TODO da implementare le due funzioni sottostanti
+              //bool send_multicast_message(char*);
+              //bool send_multicast_raw(void*, int);
 
-             */
-
-
-    /*
-
-        Definisce i 4 costruttori ed il ~distruttore
-
-        ServerTcp(): vuoto, definisce ip e porta di default (vedi macro)
-        ServerTcp(bool): se attivo imposta come indirizzo quello default di loopback, altrimenti
-        quello DHCP
-        ServerTcp(int): offre la possibilita di scegliere la porta, l'indirizzo è settato di default
-        ServerTcp(int, bool): imposta sia la porta ricevuta come parametro, che se attivo, l'indirizzo di
-        loopback.
-
-
-    */
-
-    public: ServerTcp();
-            ServerTcp(bool);
-            ServerTcp(int);
-            ServerTcp(int, bool);
-            ~ServerTcp();
-
-    private: void bind_cl(Address);
-             void listen_cl();
-             void accept_connection(Address*);
-             void recive_string(char* buffer);
-             void send_string(char* buffer);
-             Address getMyAddress();
+    private:  void close_connections();
 
 };
 
-ServerTcp::ServerTcp(){
-
-    //setta le variabili di default
-    this->my_port = DEFAULT_SERVER_PORT;
-    this->my_ip = strdup(IP_LO);
-
-    //riempie un address con l'indirizzo del server, da passare alla bind_cl()
-    Address my_self = getMyAddress();
-    bind_cl(my_self);
-
-    //mettiamo il server in ascolto per un numero massimo di connessioni
-    listen_cl();
-
-}
-
-ServerTcp::ServerTcp(bool is_loopback){
-
-	if (is_loopback)
-		this->my_ip = strdup(IP_LO);
-	else
-		this->my_ip = strdup(IP_DHCP);
-
-	this->my_port = DEFAULT_SERVER_PORT;
-
-    //riempie un address con l'indirizzo del server, da passare alla bind_cl()
-    Address my_self = getMyAddress();
-    bind_cl(my_self);
-
-    //mettiamo il server in ascolto per un numero massimo di connessioni
-    listen_cl();
-
-}
-
-//porta passata dall'utente, indirizzo di default: IP_LO
+//associo il socket all'indirizzo
 ServerTcp::ServerTcp(int port){
 
+    //Mi costruisco un indirizzo con la classe Address
+    Address my_address(strdup(IP_LO), port);
+    //Inserisco il risultato nella struttura binaria
+    struct sockaddr_in my_self = my_address.getBinary();
 
-	this->my_port = port;
-	this->my_ip = strdup(IP_LO);
+    //associo indirizzo a socket
+    if (bind(sock_id,
+            (struct sockaddr*) &my_self,
+            (socklen_t) sizeof(struct sockaddr_in))
+            == -1)
+    //Intercetto eventuale presenza errore
+    printf("Error doing bind(): %s\n", strerror(errno));
 
-    Address my_self = getMyAddress();
-    bind_cl(my_self);
+    //Metto il server in ascolto
+    if (listen(sock_id, MAX_CONN) == -1)
 
-    //mettiamo il server in ascolto per un numero massimo di connessioni
-    listen_cl();
+      //Intercetto eventuale presenza errore
+      printf("Error listening for client: %s\n", strerror(errno));
 
-	}
+}
 
-	//l'utilizzatore decide a sua discrezione cosa utilizzare
-ServerTcp::ServerTcp(int port, bool loopback){
+//Chiude tutte le connessioni legate a questo socket
+ServerTcp::~ServerTcp(){
 
-	if (loopback)
-		this->my_ip = strdup(IP_LO);
-	else
-		this->my_ip = strdup(IP_DHCP);
+  disconnect();
 
-	this->my_port = port;
+}
 
-	Address my_address = getMyAddress();
-    bind_cl(my_address);
+ServerConnection* ServerTcp::accept(){
 
-    //mettiamo il server in ascolto per un numero massimo di connessioni
-    listen_cl();
+  //Struttura in cui finisce l'indirizzo del client che ci sta contattando
+  struct sockaddr client_address;
+  int struct_len = sizeof(struct sockaddr);
 
-	}
+  //chiamo la API ed intercetto eventuali errori
+  int conn_id = accept(sock_id,
+                      (struct sockaddr*) &client_address,
+                      (socklen_t*) &struct_len);
 
-  ServerTcp::~ServerTcp(){
+  if (conn_id == -1)
+    printf("Error accepting connection: %s\n", strerror(errno));
 
-    free(my_ip);
+  //Creo la nuova connessione con il conn_id accettato
+  ServerConnection* ret = new ServerConnection(conn_id);
+  //Aggiungo la connessione alla lista
+  connections.push_front(ret);
 
+  //Restituisco la nuova connessione
+  return ret;
+
+}
+
+void ServerTcp::disconnect(ServerConnection* connection){
+
+  //Rimuove la connessione dalla lista
+  connections.remove(connection);
+  //Elimina l'oggetto
+  delete(connection);
+
+}
+
+void ServerTcp::server_shutdown(){
+
+  //Cicla finchè la lista delle connessioni non è vuota
+  while (!connections.empty()){
+    //disconnette la connessione all'inizio della lista
+    disconnect(connections.front());
   }
-
-    /*
-
-        Questo metodo ha come unico scopo quello di isolare la chiamata
-        alla API di sistema bind_cl(), che associa un struttura sockaddr
-        (contenente indirizzo ip e porta), ad un socket.
-        Tutti i metodi (costruttori) che necessitano di eseguire questa
-        funzione richiamano la seguente, passandole un Address contenente
-        appunto porta e ip del server.
-
-        Viene inoltre implementato il controllo su possibili errori in esecuzione,
-        e se si verificano l'utente viene avvisato, successivamente l'applicazione
-        termina.
-
-    */
-
-//TODO commentare la bind_cl
-void ServerTcp::bind_cl(Address my_address){
-
-    sockaddr_in my_self_struct = my_address.getBinary();
-
-    if (bind(sock_id, (struct sockaddr*) &my_self_struct, sizeof(struct sockaddr)) == -1){
-        printf("Error bind address and socket: %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-}
-
-//TODO commentare la listen_cl
-void ServerTcp::listen_cl(){
-
-    if(listen(sock_id , MAX_CONNECTIONS) == -1){
-        printf("Error listen_cling for connections: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-
-    }
-
-}
-
-//TODO commentare la getMyAddress()
-Address ServerTcp::getMyAddress(){
-
-    Address my_self;
-    my_self.setPort(this->my_port);
-    my_self.setIp(strdup(this->my_ip));
-
-    return my_self;
-
-}
-
-void ServerTcp::accept_connection(Address* client_address){
 
 }
 
@@ -272,19 +194,35 @@ void ServerTcp::accept_connection(Address* client_address){
 
 class ClientTcp:private SocketTcp{
 
-    private: int dest_port;
-             char* dest_ip;
+    //Puntatore ad una connessione client, inizializzato a null
+    private: ClientConnection* connection = NULL;
 
     protected:  ClientTcp();
                 ~ClientTcp();
-                void connetti();
 
+                /*
+                * Questi metodi sono in realtà fittizzi, per ognuno
+                * ci si appoggia alla classe che gestisce le connessioni
+                * del client, a cui si accede mediante la maniglia 'connection',
+                * che viene inizializzata quando di invoca il metodo connect
+                *
+                */
+
+                bool connect();
+                bool send_message(char*);
+                bool send_raw(void*, int);
+                char* receive_message();
+                char* receive_raw(int*);
 };
 
-//costruttore vuoto, commentare
-ClientTcp::ClientTcp(){}
+ClientTcp::ClientTcp():SocketTcp{}
 
-ClientTcp::~ClientTcp(){}
+ClientTcp::~ClientTcp(){
+
+  if(connection != NULL)
+      delete connection;
+
+}
 
 void ClientTcp::connetti(){
 
