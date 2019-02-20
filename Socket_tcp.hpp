@@ -208,7 +208,7 @@ class ClientTcp:private SocketTcp{
                 *
                 */
 
-                bool connect();
+                bool connect(Address);
                 bool send_message(char*);
                 bool send_raw(void*, int);
                 char* receive_message();
@@ -224,70 +224,44 @@ ClientTcp::~ClientTcp(){
 
 }
 
-void ClientTcp::connetti(){
+bool ClientTcp::connect(Address server_address){
+
+  struct sockaddr_in server = serverAddress.getBinary();
+
+  //Connetto il socket al server, intercetto eventuali errori
+  if (connect(sock_id,
+             (struct sockaddr*) &serverAddr,
+             sizeof(struct sockaddr_in)) == -1){
+
+               printf("Error connecting to server: %s\n", strerror(errno));
+               return true;
+
+             }
+
+  this->connection = new ClientConnection(sock_id);
+  return false;
 
 }
 
 //============================================Connection===================================================================
 
-class Connection: private ClientConnection{
+class Connection{
 
-    protected:  Connection(int);
-                ~Connection();
+    protected:  int conn_id;
 
-    private:  int id;
+    public: Connection(int);
+  		      ~Connection();
 
-              /*
-                send (invocata mediante binding dinamico):
-                void* -> buffer con risorsa da passare
-                int -> grandezza del buffer
-
-                restituisce true in caso di errore
-
-              */
-              bool send_raw(void*, int);
-              /*
-                recive_raw (invocata mediante binding dinamico):
-                void* -> buffer con risorsa che arriverà dal client
-                int -> grandezza del buffer
-
-                return -1 in caso di errore, altrimenti
-                resitiuisce il numero di byte ricevuti
-
-              */
-              int recive_raw(void*, int);
-              /*
-                Invio di una semplice stringa
-                appoggiandocisi al metodo send_raw
-
-                return true in caso di errore
-
-              */
-              bool send_string(char* buffer);
-              /*
-                Ricezione di una stringa con aggiunta
-                del carattere terminatore per sicurezza
-
-                return null al posto di una stirnga
-                nel caso di errore
-
-              */
-              char* recive_string();
-
+            bool send_message(char*);
+  		      bool send_raw(void*,int);
+  		      char* receive();
+  		      char* receive_raw(int*);
 
 };
 
-/*
-
-  L'oggetto connessione necessita di un id che consenta
-  le operazioni di invio e ricezione: non imprta se si
-  riceve un conn_id o un socket_id
-
-*/
-
 Connection::Connection(int id){
 
-  this->id = id;
+  this->conn_id = id;
 
 }
 
@@ -295,90 +269,87 @@ Connection::~Connection(){}
 
 bool Connection::send_raw(void* buffer, int buffer_size){
 
-    if(send(id, buffer, buffer_size, 0) == -1){
+    if(send(this->conn_id,
+            buffer,
+            buffer_size,
+            0) == -1){
+
       printf("Error sending buffer: %s\n", strerror(errno));
       return true;
+
     }
 
     return false;
 
 }
 
-int Connection::recive_raw(void* buffer, int buffer_size){
+bool Connection::send_message(char* message){
 
-  int bytes_received = recv(id, buffer, buffer_size, 0);
-
-  if(bytes_received == -1){
-    printf("Error receving buffer: %s\n", strerror(errno));
-    return -1;
-  }
-
-  return bytes_received;
+  return send_raw(message, strlen(message) + 1);
 
 }
 
-bool Connection::send_string(char* buffer){
+void* Connection::recive_raw(int* buffer_size){
 
-  int this_buffer_size = strlen(buffer);
+  char buffer[MAX_MESSAGE + 1];
 
-  if(send_raw(buffer, this_buffer_size))
-    return true;
-  else
-    return false;
+  //Nel valore puntato da buffer_size inserisco il numero di bit ricevuti
+  buffer_size = recv(this->connID,
+                      buffer,
+                      MAX_MESSAGE,
+                      0);
+	if(buffer_size == -1)
+		printf("Error receiving buffer: %s", strerror(errno));
 
-}
-
-char* Connection::recive_string(){
-
-  //buffer in cui verrà salvato il messaggio di cui siamo destinatari
-  char buffer[MAX_BUFFER_SIZE];
-  //mi serve successivamente per capire dove aggiungere un carattere terminatore
-  int this_buffer_size;
-
-  //chiamata alla API
-  this_buffer_size = recive_raw(buffer, MAX_BUFFER_SIZE);
-
-  //paradossale controllo per non andare in overflow
-  if (this_buffer_size > MAX_BUFFER_SIZE){
-    printf("Mmmm...bytes recived are more than the buffer size...\n");
-    return NULL;
-  }
-
-  //aggiunta del carattere terminatore alla fine della stringa
-  buffer[this_buffer_size + 1] = '\0';
-
-  //Ritorno il buffer con il carrattere terminatore aggiunto,
-  //dopo averlo clonato in un char* per agevolare chi riceverà il dato
+	buffer[MAX_MESSAGE + 1] = '\n';
   char* foo;
   strcpy(buffer, foo);
-  return foo;
+  return (void*) foo;
+
+}
+
+char* Connection::recive_message(){
+
+  int message_lenght;
+  char* message = (char*) receive_raw(&message_lenght);
+  //Ulteriore controllo sul carattere terminatore
+  //Sposto il puntatore sull'ultima cella e vado ad aggiungerlo
+  *(message + lenght) = '\0';
+
+  //restistuisco il messaggio
+  return message;
 
 }
 
 //======================================ClientConnection===================================================================
 
-class ClientConnection{
+class ClientConnection: protected Connection{
 
-private: ;
+public: ClientConnection(int);
+        ~ClientConnection();
 
-protected:  ClientConnection(int);
-            ~ClientConnection();
-
-            void send_string(char* message);
-            char* recive_string();
 };
 
-ClientConnection::ClientConnection(int mmt){
+ClientConnection::ClientConnection(int conn_id):
+  Connection(conn_id){}
 
-  Connection connection = new Connection(5);
-
-}
+ClientConnection::~ClientConnection(){}
 
 //======================================ServerConnection===================================================================
 
-  class ServerConnection:private Connection{
+class ServerConnection:protected Connection{
 
+  public: ConnServer(int);
+		      ~ConnServer();
 };
+
+ConnServer::ConnServer(int conn_id):Connection(conn_id){}
+
+ConnServer::~ConnServer(){
+
+	shutdown(connID, SHUT_RDWR);
+
+}
 
 
 
