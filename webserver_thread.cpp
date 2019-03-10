@@ -1,4 +1,4 @@
-#include "SocketTCP.hpp"
+#include "socket_tcp.hpp"
 
 #define HOME "HTTP/1.1 200 OK\n\
 Date: Wed, 19 Apr 2017 16:34:20 GMT\n\
@@ -15,29 +15,29 @@ Content-Type: text/html; charset=UTF-8\n\
 typedef struct {
 
 		//oke
-		ConnServer* conn;
-		ServerTCP* myself;
+		ServerConnection* conn;
+		ServerTcp* myself;
 
 } Params;
 
 void* request(void* params) {
 
   // Mi prendo la risposta da fornire al client
-  static char* home = strdup("foo");
+  static char* home =	 strdup("foo");
 
   // Lo si fa per il casting
   Params* p = (Params*) params;
   // Salvo i valori puntati in due variabili locali
-  ConnServer* conn = (ConnServer*) p->conn;
-  ServerTCP* myself = (ServerTCP*) p->myself;
+  ServerConnection* conn = (ServerConnection*) p->conn;
+  ServerTcp* myself = (ServerTcp*) p->myself;
   // elimino i parametri dallo heap
   free(p);
   // Ricevo le richieste
-  conn->ricevi();
+  conn->receive_message();
   // Invio le risposte
-  conn->invia(home);
+  conn->send_message(home);
 		// Disconnetto questa conn dalla lista
-  myself->disconnetti(conn);
+  myself->disconnect(conn);
   // Termino il threadz
   pthread_exit(NULL);
 
@@ -48,11 +48,11 @@ int main (int argc, char const *argv[]){
   int port = atoi(argv[1]);
 
 		// Idea di Wang, far diventare questo un SINGLETON (DP GOF)
-  ServerTCP* myself = new ServerTCP(port);
+  ServerTcp* myself = new ServerTcp(port);
 
   while(true){
 
-    ConnServer* conn = myself->accetta();
+    ServerConnection* conn = myself->accept();
     /*
 
     		Dobbiamo mallocare la uno spazio in memoria
