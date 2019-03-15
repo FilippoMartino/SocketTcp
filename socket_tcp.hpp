@@ -39,7 +39,9 @@ SocketTcp::SocketTcp(){
 
    */
 
-   if (this->sock_id= socket(AF_INET, SOCK_STREAM, 0) == -1){
+   this->sock_id = socket(AF_INET, SOCK_STREAM, 0);
+
+   if (sock_id == -1){
        printf("Error setting socket: %s\n", strerror(errno));
        exit(EXIT_FAILURE);
    }
@@ -105,7 +107,7 @@ void SocketTcp::setBroadcast(bool is_active){
               bool send_message(char*);
               bool send_raw(void*,int);
               char* receive_message();
-              void* receive_raw(int*);
+              char* receive_raw(int*);
 
   };
 
@@ -139,33 +141,39 @@ void SocketTcp::setBroadcast(bool is_active){
 
   }
 
-  void* Connection::receive_raw(int* buffer_size){
+  char* Connection::receive_raw(int* buffer_size){
 
     char buffer[MAX_BUFFER_SIZE + 1];
 
     //Nel valore puntato da buffer_size inserisco il numero di bit ricevuti
-    *buffer_size = recv(this->conn_id,
+   *buffer_size = recv(this->conn_id,
                        (void*) buffer,
                        MAX_BUFFER_SIZE,
                        0);
+
     if(*buffer_size == -1)
       printf("Error receiving buffer: %s", strerror(errno));
 
-    buffer[MAX_BUFFER_SIZE + 1] = '\n';
-    char* foo;
-    strcpy(buffer, foo);
-    return (void*) foo;
+    char* ret = (char*) malloc(*buffer_size + 1);
+
+    for(int i=0; i <= *buffer_size; i++){
+
+        *(ret + i) = buffer[i];
+
+    }
+
+    return ret;
+
 
   }
 
   char* Connection::receive_message(){
 
     int message_lenght;
-    char* message = (char*) receive_raw(&message_lenght);
+    char* message = receive_raw(&message_lenght);
     //Ulteriore controllo sul carattere terminatore
     //Sposto il puntatore sull'ultima cella e vado ad aggiungerlo
     *(message + message_lenght) = '\0';
-
     //restistuisco il messaggio
     return message;
 
@@ -204,7 +212,7 @@ void SocketTcp::setBroadcast(bool is_active){
 
 //==============================================ServerTcp==================================================================
 
-class ServerTcp: private SocketTcp{
+class ServerTcp: public SocketTcp{
 
     private:  list <ServerConnection*> connections;
               char* my_ip;
@@ -232,6 +240,9 @@ ServerTcp::ServerTcp(int port){
     //Inserisco il risultato nella struttura binaria
     struct sockaddr_in my_self = my_address.getBinary();
 
+    printf("my address: %s\n", my_address.getIp());
+    printf("my port: %d\n", my_address.getPort());
+
     //associo indirizzo a socket
     if (bind(sock_id,
             (struct sockaddr*) &my_self,
@@ -240,17 +251,21 @@ ServerTcp::ServerTcp(int port){
     //Intercetto eventuale presenza errore
     printf("Error doing bind(): %s\n", strerror(errno));
 
+    printf("[server] Ho fatto la bind()\n");
     //Metto il server in ascolto
     if (listen(sock_id, MAX_CONNECTIONS) == -1)
 
       //Intercetto eventuale presenza errore
       printf("Error listening for client: %s\n", strerror(errno));
 
+    printf("[server] Ho fatto la listen()\n");
+
 }
 
 //Chiude tutte le connessioni legate a questo socket
 ServerTcp::~ServerTcp(){
 
+  printf("[Server] Sono dentro il distruttore, faccio la server_shutdown()\n");
   server_shutdown();
 
 }
@@ -269,6 +284,8 @@ ServerConnection* ServerTcp::accept_connection(){
   if (conn_id == -1)
     printf("Error accepting connection: %s\n", strerror(errno));
 
+  printf("[server] Ho fatto la accept()\n");
+
   //Creo la nuova connessione con il conn_id accettato
   ServerConnection* ret = new ServerConnection(conn_id);
   //Aggiungo la connessione alla lista
@@ -285,7 +302,6 @@ void ServerTcp::disconnect(ServerConnection* to_disconnect){
 	connections.remove(to_disconnect);
 
 }
-
 
 void ServerTcp::server_shutdown(){
 
