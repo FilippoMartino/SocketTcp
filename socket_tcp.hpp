@@ -173,7 +173,7 @@ void SocketTcp::setBroadcast(bool is_active){
 
   //======================================ClientConnection===================================================================
 
-  class ClientConnection:protected Connection{
+  class ClientConnection:public Connection{
 
   public: ClientConnection(int);
           ~ClientConnection();
@@ -187,7 +187,7 @@ void SocketTcp::setBroadcast(bool is_active){
 
   //======================================ServerConnection===================================================================
 
-  class ServerConnection:protected Connection{
+  class ServerConnection:public Connection{
 
     public: ServerConnection(int);
   		      ~ServerConnection();
