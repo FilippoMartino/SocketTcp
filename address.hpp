@@ -43,7 +43,7 @@
     *
     */
 
-    #define IP_LO "127.0.0.1"
+    #define IP_LO "127.0.0.1" eee
     #define IP_DHCP "0.0.0.0"
 
     #define PORT_ZERO 0
