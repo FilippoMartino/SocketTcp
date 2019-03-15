@@ -239,10 +239,6 @@ ServerTcp::ServerTcp(int port){
     Address my_address(strdup(IP_LO), port);
     //Inserisco il risultato nella struttura binaria
     struct sockaddr_in my_self = my_address.getBinary();
-
-    printf("my address: %s\n", my_address.getIp());
-    printf("my port: %d\n", my_address.getPort());
-
     //associo indirizzo a socket
     if (bind(sock_id,
             (struct sockaddr*) &my_self,
@@ -251,21 +247,18 @@ ServerTcp::ServerTcp(int port){
     //Intercetto eventuale presenza errore
     printf("Error doing bind(): %s\n", strerror(errno));
 
-    printf("[server] Ho fatto la bind()\n");
     //Metto il server in ascolto
     if (listen(sock_id, MAX_CONNECTIONS) == -1)
 
       //Intercetto eventuale presenza errore
       printf("Error listening for client: %s\n", strerror(errno));
 
-    printf("[server] Ho fatto la listen()\n");
 
 }
 
 //Chiude tutte le connessioni legate a questo socket
 ServerTcp::~ServerTcp(){
 
-  printf("[Server] Sono dentro il distruttore, faccio la server_shutdown()\n");
   server_shutdown();
 
 }
@@ -283,8 +276,6 @@ ServerConnection* ServerTcp::accept_connection(){
 
   if (conn_id == -1)
     printf("Error accepting connection: %s\n", strerror(errno));
-
-  printf("[server] Ho fatto la accept()\n");
 
   //Creo la nuova connessione con il conn_id accettato
   ServerConnection* ret = new ServerConnection(conn_id);
@@ -366,10 +357,5 @@ bool ClientTcp::connect_to_server(Address server_address){
   return false;
 
 }
-
-
-
-
-
 
 #endif
