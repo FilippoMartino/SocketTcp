@@ -279,6 +279,13 @@ ServerConnection* ServerTcp::accept_connection(){
 
 }
 
+void ServerTcp::disconnect(ServerConnection* to_disconnect){
+
+  delete(to_disconnect);
+	connections.remove(to_disconnect);
+
+}
+
 
 void ServerTcp::server_shutdown(){
 
