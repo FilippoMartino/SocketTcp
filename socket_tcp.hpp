@@ -99,15 +99,27 @@ void SocketTcp::setBroadcast(bool is_active){
 
   class Connection{
 
-      protected:  int conn_id;
+      protected:
 
-      public: Connection(int);
+              int conn_id;
+
+      public:
+              Connection(int);
               ~Connection();
 
               bool send_message(char*);
               bool send_raw(void*,int);
+              bool send_file(char*);
+
               char* receive_message();
               char* receive_raw(int*);
+              //salva il file nella path specificata
+              bool receive_file(char* path);
+
+      private:
+              //calcola la grandezza di un file passandogli il path come parametro
+              long int calculate_file_size(char* file_path);
+
 
   };
 
@@ -128,10 +140,35 @@ void SocketTcp::setBroadcast(bool is_active){
 
         printf("Error sending buffer: %s\n", strerror(errno));
         return true;
-
       }
-
       return false;
+  }
+
+  long int Connection::calculate_file_size(char* file_path){
+
+	  //apro il file in modalità lettura
+    FILE* file = fopen(file_path, "r");
+
+ 	  //controlliamo che il file passato dall'utente esista effettivamente
+    if (file == NULL) {
+      printf("File Not Found!\n");
+      return -1;
+    }
+
+      /*
+      per utilizzo di questa fuzione vedre es calcolare_dimesione_file
+      nella cartella esercizi
+      */
+
+      fseek(file, 0L, SEEK_END);
+
+      // calcoliamo la grandezza del file passato mediante ftell()
+      long int file_size = ftell(file);
+
+      // chiudo il file
+      fclose(file);
+
+      return file_size;
 
   }
 
@@ -140,6 +177,35 @@ void SocketTcp::setBroadcast(bool is_active){
     return send_raw(message, strlen(message) + 1);
 
   }
+
+  //Codice bovinamente riciclato dalla socket_udp
+  bool Connection::send_file(char* path){
+
+		//apriamo il file passato dall'utente in modalità lettura
+		//molto importante il rd, read binary
+		FILE* file = fopen(path,"rb");
+
+		//calcolo la dimensione del file mediante la funzione 'calculate_file_size'
+		long int file_size =  calculate_file_size(path);
+
+    //invio la dimensione del file che sta per arrivare (intercetto eventuale errore)
+    if (send_raw((void*) file_size, (sizeof(long int)))
+      printf("Error sending file dimension: %s\n", strerror(errno));
+
+
+		//buffer in cui verrà salvato l'intero file
+		char buffer[file_size];
+
+		//leggo tutto il file e lo metto nel buffer
+		fread(buffer, file_size, sizeof(char), file);
+
+		//chiudo il file
+		fclose(file);
+
+    return send_raw((void*) buffer, file_size);
+
+  }
+
 
   char* Connection::receive_raw(int* buffer_size){
 
@@ -166,6 +232,31 @@ void SocketTcp::setBroadcast(bool is_active){
 
 
   }
+
+  bool Connessione::receive_file(){
+
+		//riceviamo innanzitutto la grandezza del file
+		long int file_size;
+		file_size = (long int) receive_raw(sizeof(long int));
+
+
+
+		//creo il buffer che conterrà l'intera immagine
+		char buffer[file_size];
+
+		
+
+		//apro il file con il nome passatoci dal mittente
+		FILE* my_file = fopen(file_name, "w");
+
+		//trascrivo l'intero buffer sul nuovo file
+		fwrite(buffer, sizeof(buffer), sizeof(char), my_file);
+		//chiudo il file
+		fclose(my_file);
+
+		return false;
+
+}
 
   char* Connection::receive_message(){
 
