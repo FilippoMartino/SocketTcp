@@ -108,7 +108,9 @@ void SocketTcp::setBroadcast(bool is_active){
               ~Connection();
 
               bool send_message(char*);
-              bool send_raw(void*,int);
+              //indicare il nome del file
+              bool send_html(char*);
+              bool send_raw(void*,long int);
               bool send_file(char*);
 
               char* receive_message();
@@ -131,7 +133,10 @@ void SocketTcp::setBroadcast(bool is_active){
 
   Connection::~Connection(){}
 
-  bool Connection::send_raw(void* buffer, int buffer_size){
+  bool Connection::send_raw(void* buffer, long int buffer_size){
+
+    //DEBUG
+      //printf("File da spedire: %s\n", (char*) buffer);
 
       if(send(this->conn_id,
               buffer,
@@ -141,12 +146,27 @@ void SocketTcp::setBroadcast(bool is_active){
         printf("Error sending buffer: %s\n", strerror(errno));
         return true;
       }
+
+
       return false;
   }
 
   bool Connection::send_message(char* message){
 
-    return send_raw(message, strlen(message) + 1);
+    return send_raw(message, (long int) strlen(message) + 1);
+
+  }
+
+  bool Connection::send_html(char* path){
+
+    FILE* file = fopen(path,"rb");
+    long int file_size =  calculate_file_size(path);
+    //buffer in cui verrà salvato l'intero file
+		char buffer[file_size];
+		//leggo tutto il file e lo metto nel buffer
+		fread(buffer, file_size, sizeof(char), file);
+    fclose(file);
+    send_message((char*) buffer);
 
   }
 
@@ -161,7 +181,7 @@ void SocketTcp::setBroadcast(bool is_active){
 		long int file_size =  calculate_file_size(path);
 
     //invio la dimensione del file che sta per arrivare (intercetto eventuale errore)
-    if (send_raw((void*) file_size, (sizeof(long int))))
+    if (send_raw((char*) file_size, (sizeof(long int))))
       printf("Error sending file dimension: %s\n", strerror(errno));
 
 
@@ -171,10 +191,13 @@ void SocketTcp::setBroadcast(bool is_active){
 		//leggo tutto il file e lo metto nel buffer
 		fread(buffer, file_size, sizeof(char), file);
 
-		//chiudo il file
+    //DEBUG
+    //printf("[socketTcp: ho letto: %s]\n", buffer);
+
+    //chiudo il file
 		fclose(file);
 
-    return send_raw((void*) buffer, file_size);
+    return send_raw((char*) buffer, file_size);
 
   }
 
@@ -366,13 +389,13 @@ ServerTcp::~ServerTcp(){
 ServerConnection* ServerTcp::accept_connection(){
 
   //Struttura in cui finisce l'indirizzo del client che ci sta contattando
-  struct sockaddr client_address;
-  int struct_len = sizeof(struct sockaddr);
+  struct sockaddr_in client_address;
+  socklen_t client_address_size = sizeof(struct sockaddr);
 
   //chiamo la API ed intercetto eventuali errori
   int conn_id = accept(sock_id,
                       (struct sockaddr*) &client_address,
-                      (socklen_t*) &struct_len);
+                      &client_address_size);
 
   if (conn_id == -1)
     printf("Error accepting connection: %s\n", strerror(errno));
